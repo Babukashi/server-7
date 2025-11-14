@@ -85,12 +85,43 @@ app.put('/api/pokemons/:id', async (c) => {
 
 /*** リソースの削除 ***/
 app.delete('/api/pokemons/:id', async (c) => {
-  return c.json({ path: c.req.path });
+  const id = Number(c.req.param('id'));
+
+  constpkmns = await kv.list({ prefix: ['pokemons'] });
+  let exists = false;
+  for await (const pkmn of pkmns) {
+    if (pkmn.value.id == id) {
+      exists = true;
+      break;
+    }
+  }
+
+  if (exists) {
+    await kv.delete(['pokemons', id]);
+    c.status(204);
+    return c.body(null);
+  } else {
+    c.status(404);
+    return c.json({ message: `IDが${id}のポケモンはいませんでした。` });
+  }
 });
 
 /*** リソースをすべて削除（練習用） ***/
 app.delete('/api/pokemons', async (c) => {
-  return c.json({ path: c.req.path });
+  const deletelist = await kv.list({ prefix: ['pokemons'] });
+
+  const atomic = kv.atomic();
+  for await (const entry of deletelist) atomic.delete(entry.key);
+  const result = await atomic.commit();
+
+  if (result.ok) {
+    await kv.delete(['counter', 'pokemons']);
+    c.status(204);
+    return c.body(null);
+  } else {
+    c.status(503);
+    return c.json({ message: 'レコードの一括削除に失敗しました。' });
+  }
 });
 
 Deno.serve(app.fetch);
