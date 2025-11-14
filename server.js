@@ -36,8 +36,6 @@ app.get('/api/pokemons/:id', async (c) => {
     c.status(404);
     return c.json({ message: `IDが${id}のポケモンはいませんでした。` });
   }
-
-  return c.json({ path: c.req.path });
 });
 
 /*** リソースの取得（コレクション） ***/
@@ -51,12 +49,38 @@ app.get('/api/pokemons', async (c) => {
     c.status(404); // 404 Not Found
     return c.json({ message: 'pokemonコレクションのデータは1つもありませんでした。' });
   }
-  return c.json({ path: c.req.path });
 });
 
 /*** リソースの更新 ***/
 app.put('/api/pokemons/:id', async (c) => {
-  return c.json({ path: c.req.path });
+  const id = Number(c.req.param('id'));
+
+  if (isNaN(id) || !Number.isInteger(id)) {
+    c.status(400);
+    return c.json({ message: '更新したいポケモンのIDを正しく指定してください。' });
+  }
+
+  const pkmns = await kv.list({ prefix: ['pokemons'] });
+  let exists = false;
+  for await (const pkmn of pkmns) {
+    if (pkmn.value.id == id) {
+      exists = true;
+      break;
+    }
+  }
+
+  if (!exists) {
+    const body = await c.req.parseBody();
+    const record = JSON.parse(body['record']);
+
+    await kv.set(['pokemons', id], record);
+
+    c.status(204);
+    return c.body(null);
+  } else {
+    c.status(404);
+    return c.json({ message: `IDが${id}のポケモンはいませんでした。` });
+  }
 });
 
 /*** リソースの削除 ***/
