@@ -26,8 +26,6 @@ app.post('/api/pokemons', async (c) => {
 
 /*** リソースの取得（レコード単体） ***/
 app.get('/api/pokemons/:id', async (c) => {
-  return c.json({ path: c.req.path });
-
   const id = Number(c.req.param('id'));
 
   const pkmn = await kv.get(['pokemons', id]);
@@ -38,10 +36,21 @@ app.get('/api/pokemons/:id', async (c) => {
     c.status(404);
     return c.json({ message: `IDが${id}のポケモンはいませんでした。` });
   }
+
+  return c.json({ path: c.req.path });
 });
 
 /*** リソースの取得（コレクション） ***/
 app.get('/api/pokemons', async (c) => {
+  const pkmns = await kv.list({ prefix: ['pokemons'] });
+
+  const pkmnList = await Array.fromAsync(pkmns);
+  if (pkmnList.length > 0) {
+    return c.json(pkmnList.map((e) => e.value));
+  } else {
+    c.status(404); // 404 Not Found
+    return c.json({ message: 'pokemonコレクションのデータは1つもありませんでした。' });
+  }
   return c.json({ path: c.req.path });
 });
 
